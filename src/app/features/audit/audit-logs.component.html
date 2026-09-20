@@ -1,0 +1,51 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Security</p>
+      <h1>Audit logs</h1>
+      <p class="muted">{{ total() }} total records</p>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <div class="panel table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Entity</th>
+          <th>Entity ID</th>
+          <th>When</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="5">Loading…</td></tr>
+        } @else if (items().length === 0) {
+          <tr><td colspan="5">No audit entries</td></tr>
+        } @else {
+          @for (a of items(); track a.id) {
+            <tr>
+              <td>{{ a.actor?.fullName ?? 'System' }} <small>{{ a.actor?.role }}</small></td>
+              <td>{{ a.action }}</td>
+              <td>{{ a.entityType }}</td>
+              <td>{{ a.entityId || '—' }}</td>
+              <td>{{ a.createdAt | date: 'medium' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+
+    <app-pagination
+      [page]="page()"
+      [limit]="limit"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  </div>
+</section>

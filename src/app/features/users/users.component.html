@@ -1,0 +1,115 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Access control</p>
+      <h1>Users</h1>
+      <p class="muted">{{ total() }} total records</p>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+  @if (message()) {
+    <div class="success">{{ message() }}</div>
+  }
+
+  <div class="split">
+    <section class="panel">
+      <form class="filters" [formGroup]="filters" (ngSubmit)="applyFilters()">
+        <input formControlName="search" placeholder="Search name, email, phone" />
+        <select formControlName="role">
+          <option value="">All roles</option>
+          <option value="SUPER_ADMIN">Super admin</option>
+          <option value="ADMIN">Admin</option>
+          <option value="LAWYER">Lawyer</option>
+          <option value="INSPECTOR">Inspector</option>
+          <option value="PROPERTY_MANAGER">Property manager</option>
+          <option value="BUYER">Buyer</option>
+          <option value="SELLER">Seller</option>
+        </select>
+        <button class="btn primary" type="submit">Filter</button>
+      </form>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="5">Loading…</td></tr>
+            } @else if (users().length === 0) {
+              <tr><td colspan="5">No users found</td></tr>
+            } @else {
+              @for (u of users(); track u.id) {
+                <tr>
+                  <td>{{ u.fullName }}</td>
+                  <td>{{ u.email }}</td>
+                  <td><span class="badge">{{ u.role }}</span></td>
+                  <td>{{ u.status }}</td>
+                  <td>{{ u.createdAt | date: 'mediumDate' }}</td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <app-pagination
+        [page]="page()"
+        [limit]="limit"
+        [total]="total()"
+        (pageChange)="onPageChange($event)"
+      />
+    </section>
+
+    @if (permissions.can('users.manage')) {
+      <section class="panel">
+        <h2>Create user</h2>
+        <form class="stack" [formGroup]="createForm" (ngSubmit)="create()">
+          <label>
+            <span>Full name *</span>
+            <input formControlName="fullName" />
+          </label>
+          <label>
+            <span>Email *</span>
+            <input type="email" formControlName="email" />
+          </label>
+          <label>
+            <span>Phone</span>
+            <input formControlName="phone" placeholder="10-digit mobile" />
+          </label>
+          <label>
+            <span>Role *</span>
+            <select formControlName="role">
+              <option value="ADMIN">Admin</option>
+              <option value="LAWYER">Lawyer</option>
+              <option value="INSPECTOR">Inspector</option>
+              <option value="PROPERTY_MANAGER">Property manager</option>
+              <option value="BUYER">Buyer</option>
+              <option value="SELLER">Seller</option>
+              @if (permissions.is('SUPER_ADMIN')) {
+                <option value="SUPER_ADMIN">Super admin</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Password *</span>
+            <input type="password" formControlName="password" />
+            <small>Min 8 chars with upper, lower, number, special</small>
+          </label>
+          <button class="btn primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Creating…' : 'Create user' }}
+          </button>
+        </form>
+      </section>
+    }
+  </div>
+</section>

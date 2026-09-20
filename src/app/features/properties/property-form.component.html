@@ -1,0 +1,168 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/properties" class="back">← Back</a>
+      <p class="eyebrow">Inventory</p>
+      <h1>Add property</h1>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <form class="panel form-grid" [formGroup]="form" (ngSubmit)="submit()">
+    <label class="full">
+      <span>Title *</span>
+      <input formControlName="title" />
+    </label>
+
+    <label class="full">
+      <span>Description</span>
+      <textarea rows="4" formControlName="description"></textarea>
+    </label>
+
+    <label>
+      <span>Property type *</span>
+      <select formControlName="propertyType">
+        <option value="APARTMENT">Apartment</option>
+        <option value="VILLA">Villa</option>
+        <option value="INDEPENDENT_HOUSE">Independent house</option>
+        <option value="PLOT">Plot</option>
+        <option value="COMMERCIAL">Commercial</option>
+        <option value="OTHER">Other</option>
+      </select>
+    </label>
+
+    <label>
+      <span>Furnishing *</span>
+      <select formControlName="furnishing">
+        <option value="UNFURNISHED">Unfurnished</option>
+        <option value="SEMI_FURNISHED">Semi furnished</option>
+        <option value="FULLY_FURNISHED">Fully furnished</option>
+      </select>
+    </label>
+
+    <label>
+      <span>City *</span>
+      <input formControlName="city" />
+    </label>
+
+    <label>
+      <span>Locality *</span>
+      <input formControlName="locality" />
+    </label>
+
+    <label class="full">
+      <span>Address *</span>
+      <input formControlName="address" />
+    </label>
+
+    <label>
+      <span>State *</span>
+      <input formControlName="state" />
+    </label>
+
+    <label>
+      <span>Pincode</span>
+      <input formControlName="pincode" />
+    </label>
+
+    <label>
+      <span>BHK</span>
+      <input type="number" formControlName="bhk" />
+    </label>
+
+    <label>
+      <span>Carpet area (sq.ft)</span>
+      <input type="number" formControlName="carpetAreaSqft" />
+    </label>
+
+    <label>
+      <span>Built-up area (sq.ft)</span>
+      <input type="number" formControlName="builtUpAreaSqft" />
+    </label>
+
+    <label>
+      <span>Floor</span>
+      <input type="number" formControlName="floor" />
+    </label>
+
+    <label>
+      <span>Total floors</span>
+      <input type="number" formControlName="totalFloors" />
+    </label>
+
+    <label>
+      <span>Age (years)</span>
+      <input type="number" formControlName="ageYears" />
+    </label>
+
+    <label>
+      <span>Parking</span>
+      <input type="number" formControlName="parkingSpaces" />
+    </label>
+
+    <label>
+      <span>Asking price *</span>
+      <input type="number" formControlName="askingPrice" />
+    </label>
+
+    <label>
+      <span>Estimated min</span>
+      <input type="number" formControlName="estimatedMinPrice" />
+    </label>
+
+    <label>
+      <span>Estimated max</span>
+      <input type="number" formControlName="estimatedMaxPrice" />
+    </label>
+
+    <label>
+      <span>Seller</span>
+      <select formControlName="sellerId">
+        <option value="">Select seller</option>
+        @for (s of sellers(); track s.id) {
+          <option [value]="s.id">{{ s.fullName }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      <span>Lawyer</span>
+      <select formControlName="lawyerId">
+        <option value="">Select lawyer</option>
+        @for (s of lawyers(); track s.id) {
+          <option [value]="s.id">{{ s.fullName }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      <span>Inspector</span>
+      <select formControlName="inspectorId">
+        <option value="">Select inspector</option>
+        @for (s of inspectors(); track s.id) {
+          <option [value]="s.id">{{ s.fullName }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      <span>Property manager</span>
+      <select formControlName="propertyManagerId">
+        <option value="">Select manager</option>
+        @for (s of managers(); track s.id) {
+          <option [value]="s.id">{{ s.fullName }}</option>
+        }
+      </select>
+    </label>
+
+    <div class="full actions">
+      <button class="btn primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Saving…' : 'Create property' }}
+      </button>
+      <a class="btn ghost" routerLink="/properties">Cancel</a>
+    </div>
+  </form>
+</section>

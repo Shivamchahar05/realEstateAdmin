@@ -1,0 +1,473 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/properties" class="back">← Back to properties</a>
+      @if (property(); as p) {
+        <p class="eyebrow">{{ p.propertyCode }}</p>
+        <h1>{{ p.title }}</h1>
+        <p class="muted">{{ p.locality }}, {{ p.city }} · {{ p.propertyType }}</p>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="muted">Loading property…</p>
+  } @else if (error() && !property()) {
+    <div class="alert">{{ error() }}</div>
+  } @else if (property()) {
+    @if (property(); as p) {
+    @if (message()) {
+      <div class="success">{{ message() }}</div>
+    }
+    @if (error()) {
+      <div class="alert">{{ error() }}</div>
+    }
+
+    <div class="detail-grid">
+      <section class="panel">
+        <h2>Overview</h2>
+        <dl class="facts">
+          <div><dt>Asking price</dt><dd>{{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}</dd></div>
+          <div><dt>Trust score</dt><dd>{{ p.trustScore ?? '—' }}</dd></div>
+          <div><dt>Listing</dt><dd><span class="badge">{{ p.listingStatus }}</span></dd></div>
+          <div><dt>Verification</dt><dd><span class="badge">{{ p.verificationStatus }}</span></dd></div>
+          <div><dt>BHK</dt><dd>{{ p.bhk ?? '—' }}</dd></div>
+          <div><dt>Carpet area</dt><dd>{{ p.carpetAreaSqft ?? '—' }} sq.ft</dd></div>
+          <div><dt>Seller</dt><dd>{{ p.seller?.fullName ?? '—' }}</dd></div>
+          <div><dt>Lawyer</dt><dd>{{ p.lawyer?.fullName ?? '—' }}</dd></div>
+        </dl>
+        @if (p.rejectionReason) {
+          <div class="alert">Rejection reason: {{ p.rejectionReason }}</div>
+        }
+        <p>{{ p.description }}</p>
+      </section>
+
+      @if (permissions.can('properties.assign')) {
+        <section class="panel">
+          <h2>Assign staff</h2>
+          <form class="stack" [formGroup]="assignForm" (ngSubmit)="assign()">
+            <label>
+              <span>Lawyer</span>
+              <select formControlName="lawyerId">
+                <option value="">Unassigned</option>
+                @for (s of lawyers(); track s.id) {
+                  <option [value]="s.id">{{ s.fullName }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Inspector</span>
+              <select formControlName="inspectorId">
+                <option value="">Unassigned</option>
+                @for (s of inspectors(); track s.id) {
+                  <option [value]="s.id">{{ s.fullName }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Property manager</span>
+              <select formControlName="propertyManagerId">
+                <option value="">Unassigned</option>
+                @for (s of managers(); track s.id) {
+                  <option [value]="s.id">{{ s.fullName }}</option>
+                }
+              </select>
+            </label>
+            <button class="btn primary" type="submit" [disabled]="saving()">Save assignment</button>
+          </form>
+        </section>
+      }
+
+      @if (permissions.canAny('properties.transition', 'properties.approve', 'properties.reject')) {
+        <section class="panel">
+          <h2>Verification workflow</h2>
+          @if (permissions.can('properties.transition')) {
+            <form class="stack" [formGroup]="transitionForm" (ngSubmit)="transition()">
+              <label>
+                <span>Move to status</span>
+                <select formControlName="toStatus">
+                  <option value="SUBMITTED">SUBMITTED</option>
+                  <option value="DOCUMENT_COLLECTION">DOCUMENT_COLLECTION</option>
+                  <option value="AI_ANALYSIS">AI_ANALYSIS</option>
+                  <option value="LEGAL_REVIEW">LEGAL_REVIEW</option>
+                  <option value="GOVERNMENT_CHECK">GOVERNMENT_CHECK</option>
+                  <option value="PHYSICAL_INSPECTION">PHYSICAL_INSPECTION</option>
+                  <option value="VALUATION">VALUATION</option>
+                  <option value="RISK_ASSESSMENT">RISK_ASSESSMENT</option>
+                  <option value="FINAL_REVIEW">FINAL_REVIEW</option>
+                  <option value="REVIEW_REQUIRED">REVIEW_REQUIRED</option>
+                  <option value="VERIFIED">VERIFIED</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </label>
+              <label>
+                <span>Notes</span>
+                <textarea rows="3" formControlName="notes"></textarea>
+              </label>
+              <label>
+                <span>Trust score</span>
+                <input type="number" formControlName="trustScore" min="0" max="100" />
+              </label>
+              <div class="actions">
+                <button class="btn primary" type="submit" [disabled]="saving()">Transition</button>
+                @if (permissions.can('properties.approve')) {
+                  <button class="btn" type="button" (click)="approve()" [disabled]="saving()">
+                    Approve & publish
+                  </button>
+                }
+              </div>
+            </form>
+          } @else if (permissions.can('properties.approve')) {
+            <div class="actions">
+              <button class="btn" type="button" (click)="approve()" [disabled]="saving()">
+                Approve & publish
+              </button>
+            </div>
+          }
+
+          @if (permissions.can('properties.reject')) {
+            <form class="stack reject" [formGroup]="rejectForm" (ngSubmit)="reject()">
+              <label>
+                <span>Reject reason</span>
+                <textarea
+                  rows="3"
+                  formControlName="reason"
+                  placeholder="Explain critical issue found"
+                ></textarea>
+              </label>
+              <button class="btn danger" type="submit" [disabled]="saving()">Reject property</button>
+            </form>
+          }
+        </section>
+      }
+
+      @if (showInspectionPanel() || permissions.can('inspections.schedule')) {
+        <section class="panel inspection-panel">
+          <h2>Physical inspection</h2>
+
+          @if (!inspections().length) {
+            <p class="muted">
+              @if (permissions.can('inspections.schedule')) {
+                Property manager schedules the visit below. After that the inspector submits the site report.
+              } @else if (permissions.is('INSPECTOR')) {
+                Waiting for the property manager to schedule your visit. You can fill the report once it appears here.
+              } @else {
+                No inspection visit scheduled yet.
+              }
+            </p>
+          } @else {
+            <ul class="inspection-list">
+              @for (item of inspections(); track item.id) {
+                <li class="inspection-item">
+                  <div class="doc-head">
+                    <div>
+                      <strong>{{ item.inspector?.fullName ?? 'Inspector' }}</strong>
+                      <span class="muted">
+                        @if (item.scheduledAt) {
+                          · scheduled {{ item.scheduledAt | date: 'medium' }}
+                        }
+                        @if (item.completedAt) {
+                          · completed {{ item.completedAt | date: 'medium' }}
+                        }
+                      </span>
+                    </div>
+                    <span class="badge" [attr.data-status]="item.status">{{ item.status }}</span>
+                  </div>
+                  @if (item.findings) {
+                    <p class="doc-notes"><strong>Findings:</strong> {{ item.findings }}</p>
+                  }
+                  @if (item.issues) {
+                    <p class="doc-notes"><strong>Issues:</strong> {{ item.issues }}</p>
+                  }
+                  @if (item.photos.length) {
+                    <div class="photo-grid read-only">
+                      @for (url of item.photos; track url) {
+                        <a
+                          class="photo-thumb"
+                          [href]="photoHref(url)"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <img [src]="photoHref(url)" alt="Inspection photo" />
+                        </a>
+                      }
+                    </div>
+                  }
+                  @if (canEditInspection(item) && editingInspectionId() !== item.id) {
+                    <div class="doc-actions">
+                      <button type="button" class="btn" (click)="startInspectionEdit(item)">
+                        {{ item.status === 'COMPLETED' ? 'Update report' : 'Fill inspection report' }}
+                      </button>
+                    </div>
+                  }
+
+                  @if (editingInspectionId() === item.id) {
+                    <form class="stack review-box" [formGroup]="inspectionForm" (ngSubmit)="$event.preventDefault()">
+                      <label>
+                        <span>Visit status</span>
+                        <select formControlName="status">
+                          <option value="ASSIGNED">ASSIGNED</option>
+                          <option value="IN_PROGRESS">IN_PROGRESS</option>
+                          <option value="COMPLETED">COMPLETED</option>
+                          <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                      </label>
+
+                      <fieldset class="checklist">
+                        <legend>On-site checklist</legend>
+                        @for (c of checklistItems; track c.key) {
+                          <label class="check-row">
+                            <input type="checkbox" [formControlName]="c.key" />
+                            <span class="check-label">{{ c.label }}</span>
+                          </label>
+                        }
+                      </fieldset>
+
+                      <label>
+                        <span>Findings (required)</span>
+                        <textarea
+                          rows="4"
+                          formControlName="findings"
+                          placeholder="What you observed on site"
+                        ></textarea>
+                        @if (
+                          inspectionForm.controls.findings.touched &&
+                          inspectionForm.controls.findings.invalid
+                        ) {
+                          <small class="field-error">Findings required (min 3 characters)</small>
+                        }
+                      </label>
+                      <label>
+                        <span>Issues (optional)</span>
+                        <textarea
+                          rows="3"
+                          formControlName="issues"
+                          placeholder="Defects, mismatches, risks"
+                        ></textarea>
+                      </label>
+
+                      <div class="photo-upload">
+                        <span class="field-label">Site photos</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          multiple
+                          [disabled]="uploadingPhotos() || saving()"
+                          (change)="onInspectionPhotosSelected($event)"
+                        />
+                        @if (uploadingPhotos()) {
+                          <p class="muted">Uploading…</p>
+                        }
+                        @if (inspectionPhotos().length) {
+                          <div class="photo-grid">
+                            @for (url of inspectionPhotos(); track url) {
+                              <figure class="photo-thumb">
+                                <a [href]="photoHref(url)" target="_blank" rel="noopener noreferrer">
+                                  <img [src]="photoHref(url)" [alt]="'Inspection photo'" />
+                                </a>
+                                <button
+                                  type="button"
+                                  class="photo-remove"
+                                  [disabled]="uploadingPhotos()"
+                                  (click)="removeInspectionPhoto(url)"
+                                >
+                                  Remove
+                                </button>
+                              </figure>
+                            }
+                          </div>
+                        } @else {
+                          <p class="muted">No photos yet — choose image files to upload.</p>
+                        }
+                      </div>
+
+                      <div class="coord-row">
+                        <label>
+                          <span>Latitude</span>
+                          <input type="text" formControlName="latitude" placeholder="28.5355" />
+                        </label>
+                        <label>
+                          <span>Longitude</span>
+                          <input type="text" formControlName="longitude" placeholder="77.3910" />
+                        </label>
+                      </div>
+                      <div class="actions">
+                        <button
+                          class="btn primary"
+                          type="button"
+                          [disabled]="saving()"
+                          (click)="saveInspection(false)"
+                        >
+                          Save report
+                        </button>
+                        <button
+                          class="btn"
+                          type="button"
+                          [disabled]="saving()"
+                          (click)="saveInspection(true)"
+                        >
+                          Mark completed
+                        </button>
+                        <button class="btn" type="button" (click)="cancelInspectionEdit()">Cancel</button>
+                      </div>
+                    </form>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (permissions.can('inspections.schedule') && !activeInspection()) {
+            <form class="stack request-box" [formGroup]="scheduleForm" (ngSubmit)="scheduleInspection()">
+              <h3>Schedule inspection (Property Manager)</h3>
+              <label>
+                <span>Inspector</span>
+                <select formControlName="inspectorId">
+                  <option value="">Select inspector</option>
+                  @for (s of inspectors(); track s.id) {
+                    <option [value]="s.id">{{ s.fullName }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>Date & time</span>
+                <input type="datetime-local" formControlName="scheduledAt" required />
+              </label>
+              <button class="btn primary" type="submit" [disabled]="saving()">
+                Schedule visit
+              </button>
+            </form>
+          }
+
+          @if (
+            permissions.is('INSPECTOR') &&
+            property()?.verificationStatus === 'PHYSICAL_INSPECTION' &&
+            activeInspection()?.status === 'COMPLETED'
+          ) {
+            <p class="muted tip">
+              Inspection report is completed. If status is still PHYSICAL_INSPECTION, use Verification
+              workflow → <strong>FINAL_REVIEW</strong> → Transition.
+            </p>
+          }
+        </section>
+      }
+
+      <section class="panel docs-panel">
+        <h2>Documents</h2>
+        @if (!documents().length) {
+          <p class="muted">No documents uploaded yet.</p>
+        } @else {
+          <ul class="doc-list">
+            @for (doc of documents(); track doc.id) {
+              <li class="doc-item">
+                <div class="doc-head">
+                  <div>
+                    <strong>{{ doc.title }}</strong>
+                    <span class="muted"> · {{ doc.category }}</span>
+                  </div>
+                  <span class="badge" [attr.data-status]="doc.status">{{ doc.status }}</span>
+                </div>
+                <p class="doc-meta">
+                  {{ doc.fileName }}
+                  @if (doc.version) {
+                    · v{{ doc.version }}
+                  }
+                  @if (doc.uploadedBy) {
+                    · by {{ doc.uploadedBy.fullName }}
+                  }
+                </p>
+                @if (doc.notes) {
+                  <p class="doc-notes">{{ doc.notes }}</p>
+                }
+                <div class="doc-actions">
+                  @if (fileHref(doc); as href) {
+                    <a [href]="href" target="_blank" rel="noopener noreferrer">Open file</a>
+                  } @else {
+                    <span class="muted">Awaiting seller upload</span>
+                  }
+                  @if (canReviewDoc(doc)) {
+                    <button type="button" class="btn" (click)="startReview(doc)">Review</button>
+                  }
+                </div>
+
+                @if (reviewingId() === doc.id) {
+                  <form class="stack review-box" [formGroup]="reviewForm" (ngSubmit)="$event.preventDefault()">
+                    <label>
+                      <span>Review note (required)</span>
+                      <textarea
+                        rows="3"
+                        formControlName="notes"
+                        placeholder="Explain approval or what the seller must fix"
+                      ></textarea>
+                    </label>
+                    <div class="actions">
+                      <button
+                        class="btn primary"
+                        type="button"
+                        [disabled]="saving()"
+                        (click)="reviewDocument('VERIFIED')"
+                      >
+                        Approve document
+                      </button>
+                      <button
+                        class="btn danger"
+                        type="button"
+                        [disabled]="saving()"
+                        (click)="reviewDocument('REJECTED')"
+                      >
+                        Reject — ask re-upload
+                      </button>
+                      <button class="btn" type="button" (click)="cancelReview()">Cancel</button>
+                    </div>
+                  </form>
+                }
+              </li>
+            }
+          </ul>
+        }
+
+        @if (permissions.can('documents.request')) {
+          <form class="stack request-box" [formGroup]="requestForm" (ngSubmit)="requestDocument()">
+            <h3>Request additional document</h3>
+            <label>
+              <span>Category</span>
+              <select formControlName="category">
+                @for (c of documentCategories; track c) {
+                  <option [value]="c">{{ c }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Document title</span>
+              <input type="text" formControlName="title" placeholder="e.g. Latest property tax receipt" />
+            </label>
+            <label>
+              <span>Instructions for seller (required)</span>
+              <textarea
+                rows="3"
+                formControlName="notes"
+                placeholder="Tell the seller exactly what to upload"
+              ></textarea>
+            </label>
+            <button class="btn primary" type="submit" [disabled]="saving()">Send request to seller</button>
+          </form>
+        }
+      </section>
+
+      <section class="panel">
+        <h2>Verification history</h2>
+        <ul class="timeline">
+          @for (h of p.verificationHistory ?? []; track h.id) {
+            <li>
+              <strong>{{ h.toStatus }}</strong>
+              <span>{{ h.fromStatus ? h.fromStatus + ' → ' : '' }}{{ h.toStatus }}</span>
+              <span>{{ h.notes }}</span>
+              <small>{{ h.actor?.fullName }} · {{ h.createdAt | date: 'medium' }}</small>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+    }
+  }
+</section>

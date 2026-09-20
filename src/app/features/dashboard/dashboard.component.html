@@ -1,0 +1,73 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Operations</p>
+      <h1>Dashboard</h1>
+    </div>
+    @if (permissions.can('properties.create')) {
+      <a class="btn primary" routerLink="/properties/new">Add property</a>
+    }
+  </header>
+
+  @if (loading()) {
+    <p class="muted">Loading metrics…</p>
+  } @else if (error()) {
+    <div class="alert">{{ error() }}</div>
+  } @else if (metrics()) {
+    @if (metrics(); as m) {
+    <div class="metric-grid">
+      <article><span>Total properties</span><strong>{{ m.totals.totalProperties }}</strong></article>
+      <article><span>Verified</span><strong>{{ m.totals.verifiedProperties }}</strong></article>
+      <article><span>Pending</span><strong>{{ m.totals.pendingVerification }}</strong></article>
+      <article><span>Rejected</span><strong>{{ m.totals.rejectedProperties }}</strong></article>
+      <article><span>Buyers</span><strong>{{ m.totals.buyers }}</strong></article>
+      <article><span>Sellers</span><strong>{{ m.totals.sellers }}</strong></article>
+      <article><span>Active deals</span><strong>{{ m.totals.activeTransactions }}</strong></article>
+      <article><span>Completed</span><strong>{{ m.totals.completedTransactions }}</strong></article>
+    </div>
+
+    <div class="split">
+      <section class="panel">
+        <h2>Recent properties</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of m.recentProperties; track p.id) {
+                <tr>
+                  <td><a [routerLink]="['/properties', p.id]">{{ p.propertyCode }}</a></td>
+                  <td>{{ p.title }}</td>
+                  <td><span class="badge">{{ p.verificationStatus }}</span></td>
+                  <td>{{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      @if (permissions.can('audit.view')) {
+        <section class="panel">
+          <h2>Audit trail</h2>
+          <ul class="timeline">
+            @for (a of m.recentAudits; track a.id) {
+              <li>
+                <strong>{{ a.actor?.fullName ?? 'System' }}</strong>
+                <span>{{ a.action }} · {{ a.actor?.role }}</span>
+                <small>{{ a.createdAt | date: 'medium' }}</small>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
+    }
+  }
+</section>

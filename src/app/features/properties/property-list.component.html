@@ -1,0 +1,78 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Inventory</p>
+      <h1>Properties</h1>
+      <p class="muted">{{ total() }} total records</p>
+    </div>
+    @if (permissions.can('properties.create')) {
+      <a class="btn primary" routerLink="/properties/new">Add property</a>
+    }
+  </header>
+
+  <form class="filters panel" [formGroup]="filters" (ngSubmit)="applyFilters()">
+    <input formControlName="search" placeholder="Search title, code, locality" />
+    <input formControlName="city" placeholder="City" />
+    <select formControlName="verificationStatus">
+      <option value="">All verification</option>
+      <option value="SUBMITTED">Submitted</option>
+      <option value="LEGAL_REVIEW">Legal review</option>
+      <option value="PHYSICAL_INSPECTION">Inspection</option>
+      <option value="VERIFIED">Verified</option>
+      <option value="REJECTED">Rejected</option>
+      <option value="REVIEW_REQUIRED">Review required</option>
+    </select>
+    <select formControlName="listingStatus">
+      <option value="">All listing</option>
+      <option value="DRAFT">Draft</option>
+      <option value="PENDING_VERIFICATION">Pending</option>
+      <option value="LIVE">Live</option>
+      <option value="REJECTED">Rejected</option>
+    </select>
+    <button class="btn primary" type="submit">Filter</button>
+  </form>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <div class="panel table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Title</th>
+          <th>Location</th>
+          <th>Verification</th>
+          <th>Price</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6">Loading…</td></tr>
+        } @else if (items().length === 0) {
+          <tr><td colspan="6">No properties found</td></tr>
+        } @else {
+          @for (p of items(); track p.id) {
+            <tr>
+              <td><a [routerLink]="['/properties', p.id]">{{ p.propertyCode }}</a></td>
+              <td>{{ p.title }}</td>
+              <td>{{ p.locality }}, {{ p.city }}</td>
+              <td><span class="badge">{{ p.verificationStatus }}</span></td>
+              <td>{{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}</td>
+              <td>{{ p.updatedAt | date: 'mediumDate' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+
+    <app-pagination
+      [page]="page()"
+      [limit]="limit"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  </div>
+</section>

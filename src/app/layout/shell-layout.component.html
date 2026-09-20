@@ -1,0 +1,29 @@
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">VP</span>
+      <div>
+        <p class="brand-name">Verified Property</p>
+        <p class="brand-sub">Operations Console</p>
+      </div>
+    </div>
+
+    <nav>
+      @for (link of links(); track link.path) {
+        <a [routerLink]="link.path" routerLinkActive="active">{{ link.label }}</a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <strong>{{ auth.user()?.fullName }}</strong>
+        <span>{{ auth.user()?.role }}</span>
+      </div>
+      <button type="button" class="btn ghost" (click)="auth.logout()">Sign out</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

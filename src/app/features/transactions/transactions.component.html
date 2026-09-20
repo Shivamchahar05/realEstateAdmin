@@ -1,0 +1,76 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Deals</p>
+      <h1>Transactions</h1>
+      <p class="muted">{{ total() }} total records</p>
+    </div>
+  </header>
+
+  <form class="filters panel" [formGroup]="filters" (ngSubmit)="applyFilters()">
+    <input formControlName="search" placeholder="Search code, property, buyer" />
+    <select formControlName="stage">
+      <option value="">All stages</option>
+      <option value="PROPERTY_SELECTED">Property selected</option>
+      <option value="VERIFICATION_COMPLETED">Verification completed</option>
+      <option value="NEGOTIATION_COMPLETED">Negotiation completed</option>
+      <option value="AGREEMENT_PREPARED">Agreement prepared</option>
+      <option value="LOAN_APPROVED">Loan approved</option>
+      <option value="REGISTRATION_SCHEDULED">Registration scheduled</option>
+      <option value="REGISTRATION_COMPLETED">Registration completed</option>
+      <option value="POSSESSION_COMPLETED">Possession completed</option>
+      <option value="CANCELLED">Cancelled</option>
+    </select>
+    <button class="btn primary" type="submit">Filter</button>
+  </form>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <div class="panel table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Property</th>
+          <th>Buyer</th>
+          <th>Stage</th>
+          <th>Negotiated</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6">Loading…</td></tr>
+        } @else if (items().length === 0) {
+          <tr><td colspan="6">No transactions yet</td></tr>
+        } @else {
+          @for (t of items(); track t.id) {
+            <tr>
+              <td>{{ t.transactionCode }}</td>
+              <td>{{ t.property?.propertyCode }} · {{ t.property?.title }}</td>
+              <td>{{ t.buyer?.fullName }}</td>
+              <td><span class="badge">{{ t.stage }}</span></td>
+              <td>
+                {{
+                  t.negotiatedPrice
+                    ? (t.negotiatedPrice | currency: 'INR':'symbol':'1.0-0')
+                    : '—'
+                }}
+              </td>
+              <td>{{ t.updatedAt | date: 'mediumDate' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+
+    <app-pagination
+      [page]="page()"
+      [limit]="limit"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  </div>
+</section>
