@@ -46,13 +46,20 @@
           <th>Verification</th>
           <th>Price</th>
           <th>Updated</th>
+          @if (permissions.can('properties.update')) {
+            <th>Actions</th>
+          }
         </tr>
       </thead>
       <tbody>
         @if (loading()) {
-          <tr><td colspan="6">Loading…</td></tr>
+          <tr>
+            <td [attr.colspan]="permissions.can('properties.update') ? 7 : 6">Loading…</td>
+          </tr>
         } @else if (items().length === 0) {
-          <tr><td colspan="6">No properties found</td></tr>
+          <tr>
+            <td [attr.colspan]="permissions.can('properties.update') ? 7 : 6">No properties found</td>
+          </tr>
         } @else {
           @for (p of items(); track p.id) {
             <tr>
@@ -62,6 +69,11 @@
               <td><span class="badge">{{ p.verificationStatus }}</span></td>
               <td>{{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}</td>
               <td>{{ p.updatedAt | date: 'mediumDate' }}</td>
+              @if (permissions.can('properties.update')) {
+                <td class="actions-cell">
+                  <a class="link-action" [routerLink]="['/properties', p.id, 'edit']">Update</a>
+                </td>
+              }
             </tr>
           }
         }

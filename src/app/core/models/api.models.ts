@@ -92,6 +92,9 @@ export interface Property {
   parkingSpaces?: number | null;
   furnishing: string;
   readyToMove: boolean;
+  furnishingsInventory?: Array<{ key: string; qty: number }> | null;
+  amenities?: string[] | null;
+  nearbyPlaces?: Array<{ name: string; distance: string; category: string }> | null;
   askingPrice: string | number;
   estimatedMinPrice?: string | number | null;
   estimatedMaxPrice?: string | number | null;
@@ -119,8 +122,19 @@ export interface Property {
   healthReport?: Record<string, unknown> | null;
   documents?: PropertyDocument[];
   inspections?: PropertyInspection[];
+  media?: PropertyMedia[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PropertyMedia {
+  id: string;
+  propertyId: string;
+  type: 'PHOTO' | 'VIDEO' | 'VIEW_360' | 'INSPECTION_PHOTO' | 'OTHER' | string;
+  url: string;
+  caption: string | null;
+  sortOrder: number;
+  createdAt?: string;
 }
 
 export interface PropertyDocument {

@@ -7,6 +7,7 @@ import {
   Property,
   PropertyDocument,
   PropertyInspection,
+  PropertyMedia,
   StaffOption,
 } from '../models/api.models';
 
@@ -32,6 +33,29 @@ export class AdminDataService {
 
   updateProperty(id: string, body: unknown) {
     return this.api.patch<Property>(`/properties/${id}`, body).pipe(map((r) => r.data));
+  }
+
+  listMedia(propertyId: string) {
+    return this.api
+      .get<PropertyMedia[]>(`/properties/${propertyId}/media`)
+      .pipe(map((r) => r.data));
+  }
+
+  uploadMedia(propertyId: string, files: File[], caption?: string) {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    if (caption) {
+      formData.append('caption', caption);
+    }
+    return this.api
+      .upload<PropertyMedia[]>(`/properties/${propertyId}/media`, formData)
+      .pipe(map((r) => r.data));
+  }
+
+  deleteMedia(propertyId: string, mediaId: string) {
+    return this.api
+      .delete<{ message: string }>(`/properties/${propertyId}/media/${mediaId}`)
+      .pipe(map((r) => r.data));
   }
 
   assignStaff(id: string, body: unknown) {

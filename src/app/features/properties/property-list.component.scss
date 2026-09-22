@@ -5,6 +5,20 @@
   margin-bottom: 1rem;
 }
 
+.actions-cell {
+  white-space: nowrap;
+}
+
+.link-action {
+  color: #1f4d36;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link-action:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 900px) {
   .filters {
     grid-template-columns: 1fr;

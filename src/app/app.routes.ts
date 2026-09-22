@@ -41,6 +41,15 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'properties/:id/edit',
+        canActivate: [roleGuard],
+        data: { permission: 'properties.update' },
+        loadComponent: () =>
+          import('./features/properties/property-form.component').then(
+            (m) => m.PropertyFormComponent,
+          ),
+      },
+      {
         path: 'properties/:id',
         canActivate: [roleGuard],
         data: { permission: 'properties.view' },

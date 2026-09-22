@@ -4,6 +4,7 @@ export type Permission =
   | 'dashboard.view'
   | 'properties.view'
   | 'properties.create'
+  | 'properties.update'
   | 'properties.assign'
   | 'properties.transition'
   | 'properties.approve'
@@ -34,6 +35,7 @@ export const ROLE_PERMISSIONS: Record<Permission, Role[]> = {
   'dashboard.view': ALL_STAFF,
   'properties.view': ALL_STAFF,
   'properties.create': ['SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER'],
+  'properties.update': ['SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER'],
   'properties.assign': ['SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER'],
   'properties.transition': ['SUPER_ADMIN', 'ADMIN', 'LAWYER', 'PROPERTY_MANAGER', 'INSPECTOR'],
   'properties.approve': ADMINS,

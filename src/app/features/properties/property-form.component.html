@@ -3,7 +3,10 @@
     <div>
       <a routerLink="/properties" class="back">← Back</a>
       <p class="eyebrow">Inventory</p>
-      <h1>Add property</h1>
+      <h1>{{ isEdit() ? 'Update property' : 'Add property' }}</h1>
+      @if (isEdit()) {
+        <p class="muted">Edit listing details, seller and staff assignment</p>
+      }
     </div>
   </header>
 
@@ -11,6 +14,9 @@
     <div class="alert">{{ error() }}</div>
   }
 
+  @if (loading()) {
+    <p class="muted">Loading property…</p>
+  } @else {
   <form class="panel form-grid" [formGroup]="form" (ngSubmit)="submit()">
     <label class="full">
       <span>Title *</span>
@@ -158,11 +164,134 @@
       </select>
     </label>
 
+    <div class="full features-section">
+      <h2>Furnishing details</h2>
+      <p class="muted">Set quantity for items included with the home (0 = not included).</p>
+      <div class="feature-grid">
+        @for (item of furnishingItems; track item.key) {
+          <label class="feature-item">
+            <span>{{ item.label }}</span>
+            <input
+              type="number"
+              min="0"
+              max="99"
+              [value]="furnishingValue(item.key)"
+              (input)="setFurnishingQty(item.key, $any($event.target).value)"
+            />
+          </label>
+        }
+      </div>
+    </div>
+
+    <div class="full features-section">
+      <h2>Amenities</h2>
+      <p class="muted">Select society / building amenities that apply.</p>
+      <div class="amenity-grid">
+        @for (item of amenitiesCatalog; track item.key) {
+          <label class="amenity-chip" [class.is-on]="isAmenitySelected(item.key)">
+            <input
+              type="checkbox"
+              [checked]="isAmenitySelected(item.key)"
+              (change)="toggleAmenity(item.key)"
+            />
+            <span>{{ item.label }}</span>
+            <small>{{ item.category }}</small>
+          </label>
+        }
+      </div>
+    </div>
+
+    <div class="full features-section">
+      <h2>Locality &amp; commute</h2>
+      <p class="muted">Nearby landmarks buyers care about (metro, schools, markets).</p>
+      <div class="nearby-list">
+        @for (row of nearbyRows(); track $index; let i = $index) {
+          <div class="nearby-row">
+            <input
+              placeholder="Place name"
+              [value]="row.name"
+              (input)="updateNearby(i, { name: $any($event.target).value })"
+            />
+            <input
+              placeholder="Distance (e.g. 1.2 km)"
+              [value]="row.distance"
+              (input)="updateNearby(i, { distance: $any($event.target).value })"
+            />
+            <select
+              [value]="row.category"
+              (change)="updateNearby(i, { category: $any($event.target).value })"
+            >
+              @for (cat of nearbyCategories; track cat.key) {
+                <option [value]="cat.key">{{ cat.label }}</option>
+              }
+            </select>
+            <button type="button" class="btn ghost" (click)="removeNearby(i)">Remove</button>
+          </div>
+        }
+      </div>
+      <button type="button" class="btn ghost" (click)="addNearbyRow()">+ Add nearby place</button>
+    </div>
+
+    <div class="full media-section">
+      <h2>Photos &amp; videos</h2>
+      <p class="muted">Upload JPG/PNG/WEBP/GIF or MP4/WEBM/MOV (max 50 MB each, up to 20 files).</p>
+
+      @if (mediaError()) {
+        <div class="alert">{{ mediaError() }}</div>
+      }
+
+      <label class="media-picker">
+        <span>Add images or videos</span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+          multiple
+          (change)="onMediaSelected($event)"
+        />
+      </label>
+
+      @if (existingMedia().length || pendingMedia().length) {
+        <div class="media-grid">
+          @for (media of existingMedia(); track media.id) {
+            <figure class="media-card">
+              @if (isVideo(media)) {
+                <video [src]="mediaHref(media)" controls playsinline preload="metadata"></video>
+              } @else {
+                <img [src]="mediaHref(media)" [alt]="media.caption || 'Property media'" />
+              }
+              <button
+                type="button"
+                class="media-remove"
+                [disabled]="removingMediaId() === media.id"
+                (click)="removeExisting(media)"
+              >
+                {{ removingMediaId() === media.id ? 'Removing…' : 'Remove' }}
+              </button>
+            </figure>
+          }
+          @for (item of pendingMedia(); track item.previewUrl; let i = $index) {
+            <figure class="media-card pending">
+              @if (item.kind === 'video') {
+                <video [src]="item.previewUrl" controls playsinline preload="metadata"></video>
+              } @else {
+                <img [src]="item.previewUrl" alt="Pending upload" />
+              }
+              <button type="button" class="media-remove" (click)="removePending(i)">Remove</button>
+              <span class="pending-tag">New</span>
+            </figure>
+          }
+        </div>
+      } @else {
+        <p class="muted">No media yet — choose files above.</p>
+      }
+    </div>
+
     <div class="full actions">
       <button class="btn primary" type="submit" [disabled]="saving()">
-        {{ saving() ? 'Saving…' : 'Create property' }}
+        {{ saving() ? 'Saving…' : isEdit() ? 'Save changes' : 'Create property' }}
       </button>
       <a class="btn ghost" routerLink="/properties">Cancel</a>
     </div>
   </form>
+  }
 </section>

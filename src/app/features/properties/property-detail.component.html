@@ -8,6 +8,9 @@
         <p class="muted">{{ p.locality }}, {{ p.city }} · {{ p.propertyType }}</p>
       }
     </div>
+    @if (permissions.can('properties.update') && property(); as p) {
+      <a class="btn primary" [routerLink]="['/properties', p.id, 'edit']">Update property</a>
+    }
   </header>
 
   @if (loading()) {

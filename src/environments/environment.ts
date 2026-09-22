@@ -1,5 +1,5 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:4000/api',
+  apiUrl: 'https://propsure-k6fu.onrender.com/api',
   appName: 'Verified Property Admin',
 };
