@@ -1,0 +1,182 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Leads</p>
+      <h1>Buyer requests</h1>
+      <p class="muted">
+        Compact list — open View to manage the pipeline and next action.
+      </p>
+      <p class="muted">{{ total() }} total requests</p>
+    </div>
+  </header>
+
+  <form class="filters panel" [formGroup]="filters" (ngSubmit)="applyFilters()">
+    <input formControlName="search" placeholder="Search property code or title" />
+    <select formControlName="status">
+      <option value="">All statuses</option>
+      @for (s of allStatuses; track s) {
+        <option [value]="s">{{ statusLabels[s] }}</option>
+      }
+    </select>
+    <button class="btn primary" type="submit">Filter</button>
+  </form>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <div class="panel table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Buyer</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr>
+            <td colspan="5">Loading…</td>
+          </tr>
+        } @else if (items().length === 0) {
+          <tr>
+            <td colspan="5">No buyer requests yet</td>
+          </tr>
+        } @else {
+          @for (r of items(); track r.id) {
+            <tr>
+              <td>
+                <div class="cell-title">{{ r.property?.title || 'Property' }}</div>
+                <div class="muted mono">{{ r.property?.propertyCode }}</div>
+              </td>
+              <td>
+                <div class="cell-title">{{ r.buyer?.fullName || '—' }}</div>
+                <div class="muted">{{ r.buyer?.email }}</div>
+              </td>
+              <td>
+                <span class="badge" [attr.data-status]="r.status">{{ label(r.status) }}</span>
+              </td>
+              <td>{{ r.createdAt | date: 'mediumDate' }}</td>
+              <td class="col-action">
+                <button type="button" class="btn ghost view-btn" (click)="openDetail(r)">
+                  View
+                </button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+
+    <app-pagination
+      [page]="page()"
+      [limit]="limit"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  </div>
+</section>
+
+@if (selected(); as r) {
+  <div class="modal-backdrop" (click)="closeDetail()" role="presentation"></div>
+  <div
+    class="modal-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="request-detail-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-head">
+      <div>
+        <p class="eyebrow">Lead detail</p>
+        <h2 id="request-detail-title">{{ r.property?.title || 'Property request' }}</h2>
+        <p class="muted mono">{{ r.property?.propertyCode }} · {{ r.createdAt | date: 'mediumDate' }}</p>
+      </div>
+      <button type="button" class="btn ghost" (click)="closeDetail()">Close</button>
+    </header>
+
+    <div class="modal-body">
+      <div class="detail-grid">
+        <div>
+          <p class="field-label">Buyer</p>
+          <p class="field-value">{{ r.buyer?.fullName || '—' }}</p>
+          <p class="muted">{{ r.buyer?.email }}</p>
+          @if (r.buyer?.phone) {
+            <p class="muted">{{ r.buyer?.phone }}</p>
+          }
+        </div>
+        <div>
+          <p class="field-label">Current status</p>
+          <span class="badge" [attr.data-status]="r.status">{{ label(r.status) }}</span>
+        </div>
+        <div>
+          <p class="field-label">Message</p>
+          <p class="field-value">{{ r.message || 'No message' }}</p>
+        </div>
+      </div>
+
+      @if (!isTerminal(r.status) || r.status === 'DEAL_CLOSED') {
+        <ol class="pipeline" aria-label="Deal progress">
+          @for (step of flow; track step) {
+            <li [class]="stepClass(r.status, step)">
+              <span class="dot" aria-hidden="true"></span>
+              <span class="step-name">{{ shortLabel(step) }}</span>
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="cancelled-note">This lead was cancelled.</p>
+      }
+
+      @if (canManage) {
+        <div class="lead-actions">
+          @if (advanceMeta(r.status); as action) {
+            <div class="next-block">
+              <p class="next-label">Next step</p>
+              <p class="next-hint">{{ action.hint }}</p>
+              <button
+                type="button"
+                class="btn primary next-btn"
+                [disabled]="updatingId() === r.id"
+                (click)="advance(r)"
+              >
+                {{ updatingId() === r.id ? 'Updating…' : action.button }}
+              </button>
+            </div>
+          } @else if (r.status === 'DEAL_CLOSED') {
+            <p class="done-note">Deal closed — no further action needed.</p>
+          }
+
+          <div class="secondary-actions">
+            <label class="jump">
+              <span>Jump to status</span>
+              <select
+                [disabled]="updatingId() === r.id"
+                (change)="setStatus(r.id, $any($event.target).value)"
+              >
+                @for (s of allStatuses; track s) {
+                  <option [value]="s" [selected]="s === currentStatus(r.status)">
+                    {{ statusLabels[s] }}
+                  </option>
+                }
+              </select>
+            </label>
+            @if (!isTerminal(r.status)) {
+              <button
+                type="button"
+                class="btn ghost danger-text"
+                [disabled]="updatingId() === r.id"
+                (click)="setStatus(r.id, 'CANCELLED')"
+              >
+                Cancel lead
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

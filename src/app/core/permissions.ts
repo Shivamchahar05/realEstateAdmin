@@ -18,6 +18,8 @@ export type Permission =
   | 'users.manage'
   | 'transactions.view'
   | 'transactions.manage'
+  | 'requests.view'
+  | 'requests.manage'
   | 'audit.view';
 
 const ALL_STAFF: Role[] = [
@@ -49,6 +51,8 @@ export const ROLE_PERMISSIONS: Record<Permission, Role[]> = {
   'users.manage': ADMINS,
   'transactions.view': ALL_STAFF,
   'transactions.manage': ['SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER'],
+  'requests.view': ALL_STAFF,
+  'requests.manage': ['SUPER_ADMIN', 'ADMIN', 'PROPERTY_MANAGER'],
   'audit.view': ADMINS,
 };
 
@@ -75,5 +79,6 @@ export const NAV_LINKS: NavLink[] = [
   { path: '/properties', label: 'Properties', permission: 'properties.view' },
   { path: '/users', label: 'Users', permission: 'users.view' },
   { path: '/transactions', label: 'Transactions', permission: 'transactions.view' },
+  { path: '/requests', label: 'Buyer requests', permission: 'requests.view' },
   { path: '/audit-logs', label: 'Audit Logs', permission: 'audit.view' },
 ];

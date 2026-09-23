@@ -75,6 +75,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'requests',
+        canActivate: [roleGuard],
+        data: { permission: 'requests.view' },
+        loadComponent: () =>
+          import('./features/requests/requests.component').then((m) => m.RequestsComponent),
+      },
+      {
         path: 'audit-logs',
         canActivate: [roleGuard],
         data: { permission: 'audit.view' },

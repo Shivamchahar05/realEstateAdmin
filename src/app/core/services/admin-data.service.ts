@@ -163,6 +163,14 @@ export class AdminDataService {
     return this.api.get<unknown[]>('/transactions', query);
   }
 
+  listPropertyRequests(query: Record<string, string | number | undefined> = {}) {
+    return this.api.get<unknown[]>('/property-requests', query);
+  }
+
+  updatePropertyRequest(id: string, body: { status?: string }) {
+    return this.api.patch<unknown>(`/property-requests/${id}`, body).pipe(map((r) => r.data));
+  }
+
   listAuditLogs(query: Record<string, string | number | undefined> = {}) {
     return this.api.get<unknown[]>('/audit-logs', query);
   }
