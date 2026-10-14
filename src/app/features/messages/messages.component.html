@@ -1,0 +1,61 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Website</p>
+      <h1>Messages</h1>
+      <p class="muted">Notes sent from the public Contact page.</p>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <section class="panel">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>From</th>
+            <th>Topic</th>
+            <th>Message</th>
+            <th>Received</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="5">Loading…</td></tr>
+          } @else if (!items().length) {
+            <tr><td colspan="5">No messages yet.</td></tr>
+          } @else {
+            @for (item of items(); track item.id) {
+              <tr>
+                <td>
+                  <strong>{{ item.name }}</strong>
+                  <div class="muted">{{ item.email }}</div>
+                  @if (item.phone) {
+                    <div class="muted">{{ item.phone }}</div>
+                  }
+                </td>
+                <td>{{ item.topic }}</td>
+                <td class="message-cell">{{ item.message }}</td>
+                <td>{{ item.createdAt | date: 'medium' }}</td>
+                <td>
+                  <button type="button" class="link-btn" (click)="remove(item)">Delete</button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-pagination
+      [page]="page()"
+      [limit]="limit"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  </section>
+</section>

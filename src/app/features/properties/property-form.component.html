@@ -19,7 +19,7 @@
   } @else {
   <form class="panel form-grid" [formGroup]="form" (ngSubmit)="submit()">
     <label class="full">
-      <span>Title *</span>
+      <span>{{ societyMode() ? 'Society name *' : 'Title *' }}</span>
       <input formControlName="title" />
     </label>
 
@@ -36,10 +36,12 @@
         <option value="INDEPENDENT_HOUSE">Independent house</option>
         <option value="PLOT">Plot</option>
         <option value="COMMERCIAL">Commercial</option>
+        <option value="SOCIETY">Society</option>
         <option value="OTHER">Other</option>
       </select>
     </label>
 
+    @if (!societyMode()) {
     <label>
       <span>Furnishing *</span>
       <select formControlName="furnishing">
@@ -48,6 +50,7 @@
         <option value="FULLY_FURNISHED">Fully furnished</option>
       </select>
     </label>
+    }
 
     <label>
       <span>City *</span>
@@ -74,6 +77,49 @@
       <input formControlName="pincode" />
     </label>
 
+    @if (societyMode()) {
+      <label>
+        <span>RERA number</span>
+        <input formControlName="reraNumber" placeholder="e.g. RC/REP/HARERA/GGM/2024/01" />
+      </label>
+
+      <label>
+        <span>Total towers</span>
+        <input type="number" formControlName="totalTowers" min="1" />
+      </label>
+
+      <label>
+        <span>Total units</span>
+        <input type="number" formControlName="totalUnits" min="1" />
+      </label>
+
+      <div class="full features-section">
+        <h2>Configurations</h2>
+        <p class="muted">BHK options available in this society.</p>
+        <div class="amenity-grid">
+          @for (bhk of bhkOptions; track bhk) {
+            <label class="amenity-chip" [class.is-on]="isConfigSelected(bhk)">
+              <input
+                type="checkbox"
+                [checked]="isConfigSelected(bhk)"
+                (change)="toggleConfig(bhk)"
+              />
+              <span>{{ bhk }} BHK</span>
+            </label>
+          }
+        </div>
+      </div>
+
+      <label>
+        <span>Price from *</span>
+        <input type="number" formControlName="estimatedMinPrice" min="1" />
+      </label>
+
+      <label>
+        <span>Price to *</span>
+        <input type="number" formControlName="estimatedMaxPrice" min="1" />
+      </label>
+    } @else {
     <label>
       <span>BHK</span>
       <input type="number" formControlName="bhk" />
@@ -123,6 +169,7 @@
       <span>Estimated max</span>
       <input type="number" formControlName="estimatedMaxPrice" />
     </label>
+    }
 
     <label>
       <span>Seller</span>
@@ -164,6 +211,7 @@
       </select>
     </label>
 
+    @if (!societyMode()) {
     <div class="full features-section">
       <h2>Furnishing details</h2>
       <p class="muted">Set quantity for items included with the home (0 = not included).</p>
@@ -182,6 +230,7 @@
         }
       </div>
     </div>
+    }
 
     <div class="full features-section">
       <h2>Amenities</h2>

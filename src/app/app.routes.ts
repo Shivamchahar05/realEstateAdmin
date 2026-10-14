@@ -72,7 +72,7 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/transactions/transactions.component').then(
             (m) => m.TransactionsComponent,
-          ),
+          ),  
       },
       {
         path: 'requests',
@@ -80,6 +80,34 @@ export const routes: Routes = [
         data: { permission: 'requests.view' },
         loadComponent: () =>
           import('./features/requests/requests.component').then((m) => m.RequestsComponent),
+      },
+      {
+        path: 'blog',
+        canActivate: [roleGuard],
+        data: { permission: 'blog.view' },
+        loadComponent: () =>
+          import('./features/blog/blog-list.component').then((m) => m.BlogListComponent),
+      },
+      {
+        path: 'blog/new',
+        canActivate: [roleGuard],
+        data: { permission: 'blog.manage' },
+        loadComponent: () =>
+          import('./features/blog/blog-form.component').then((m) => m.BlogFormComponent),
+      },
+      {
+        path: 'blog/:id/edit',
+        canActivate: [roleGuard],
+        data: { permission: 'blog.manage' },
+        loadComponent: () =>
+          import('./features/blog/blog-form.component').then((m) => m.BlogFormComponent),
+      },
+      {
+        path: 'messages',
+        canActivate: [roleGuard],
+        data: { permission: 'messages.view' },
+        loadComponent: () =>
+          import('./features/messages/messages.component').then((m) => m.MessagesComponent),
       },
       {
         path: 'audit-logs',

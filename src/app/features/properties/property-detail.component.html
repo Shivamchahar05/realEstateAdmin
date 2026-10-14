@@ -5,12 +5,17 @@
       @if (property(); as p) {
         <p class="eyebrow">{{ p.propertyCode }}</p>
         <h1>{{ p.title }}</h1>
-        <p class="muted">{{ p.locality }}, {{ p.city }} · {{ p.propertyType }}</p>
+        <p class="muted">{{ p.locality }}, {{ p.city }} · {{ p.propertyType === 'SOCIETY' ? 'Society' : p.propertyType }}</p>
       }
     </div>
-    @if (permissions.can('properties.update') && property(); as p) {
-      <a class="btn primary" [routerLink]="['/properties', p.id, 'edit']">Update property</a>
-    }
+    <div class="header-actions">
+      @if (permissions.can('properties.reject') && property()) {
+        <button type="button" class="btn danger-outline" (click)="openReject()">Reject</button>
+      }
+      @if (permissions.can('properties.update') && property(); as p) {
+        <a class="btn primary" [routerLink]="['/properties', p.id, 'edit']">Update property</a>
+      }
+    </div>
   </header>
 
   @if (loading()) {
@@ -26,26 +31,105 @@
       <div class="alert">{{ error() }}</div>
     }
 
-    <div class="detail-grid">
-      <section class="panel">
+    <nav class="flow-bar" aria-label="Property review steps">
+      @for (step of flowSteps(); track step.id; let i = $index) {
+        <button
+          type="button"
+          class="flow-step"
+          [class.is-active]="isStep(step.id)"
+          [class.is-done]="stepIndex() > i"
+          (click)="activeStep.set(step.id)"
+        >
+          <span class="flow-index">{{ i + 1 }}</span>
+          <span>{{ step.label }}</span>
+        </button>
+      }
+    </nav>
+
+    <div class="flow-stage">
+      @if (isStep('overview')) {
+      <section class="panel overview-panel">
         <h2>Overview</h2>
         <dl class="facts">
-          <div><dt>Asking price</dt><dd>{{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}</dd></div>
-          <div><dt>Trust score</dt><dd>{{ p.trustScore ?? '—' }}</dd></div>
-          <div><dt>Listing</dt><dd><span class="badge">{{ p.listingStatus }}</span></dd></div>
-          <div><dt>Verification</dt><dd><span class="badge">{{ p.verificationStatus }}</span></dd></div>
-          <div><dt>BHK</dt><dd>{{ p.bhk ?? '—' }}</dd></div>
-          <div><dt>Carpet area</dt><dd>{{ p.carpetAreaSqft ?? '—' }} sq.ft</dd></div>
-          <div><dt>Seller</dt><dd>{{ p.seller?.fullName ?? '—' }}</dd></div>
-          <div><dt>Lawyer</dt><dd>{{ p.lawyer?.fullName ?? '—' }}</dd></div>
+          <div>
+            <dt>{{ p.propertyType === 'SOCIETY' ? 'Price range' : 'Asking price' }}</dt>
+            <dd>
+              @if (p.propertyType === 'SOCIETY' && p.estimatedMinPrice && p.estimatedMaxPrice) {
+                {{ p.estimatedMinPrice | currency: 'INR':'symbol':'1.0-0' }}
+                –
+                {{ p.estimatedMaxPrice | currency: 'INR':'symbol':'1.0-0' }}
+              } @else {
+                {{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}
+              }
+            </dd>
+          </div>
+          @if (p.propertyType === 'SOCIETY') {
+            <div>
+              <dt>RERA</dt>
+              <dd>{{ p.reraNumber || '—' }}</dd>
+            </div>
+            <div>
+              <dt>Towers</dt>
+              <dd>{{ p.totalTowers ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt>Units</dt>
+              <dd>{{ p.totalUnits ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt>Configurations</dt>
+              <dd>{{ p.bhkConfigurations?.length ? p.bhkConfigurations!.join(', ') + ' BHK' : '—' }}</dd>
+            </div>
+          }
+          <div>
+            <dt>Trust score</dt>
+            <dd>{{ p.trustScore ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>Listing</dt>
+            <dd>
+              <span class="badge" [attr.data-status]="p.listingStatus">{{
+                statusLabel(p.listingStatus)
+              }}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Verification</dt>
+            <dd>
+              <span class="badge" [attr.data-status]="p.verificationStatus">{{
+                statusLabel(p.verificationStatus)
+              }}</span>
+            </dd>
+          </div>
+          @if (p.propertyType !== 'SOCIETY') {
+            <div>
+              <dt>BHK</dt>
+              <dd>{{ p.bhk ?? '—' }}</dd>
+            </div>
+            <div>
+              <dt>Carpet area</dt>
+              <dd>{{ p.carpetAreaSqft ?? '—' }} sq.ft</dd>
+            </div>
+          }
+          <div>
+            <dt>Seller</dt>
+            <dd>{{ p.seller?.fullName ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>Lawyer</dt>
+            <dd>{{ p.lawyer?.fullName ?? '—' }}</dd>
+          </div>
         </dl>
         @if (p.rejectionReason) {
           <div class="alert">Rejection reason: {{ p.rejectionReason }}</div>
         }
-        <p>{{ p.description }}</p>
+        @if (p.description) {
+          <p class="overview-desc">{{ p.description }}</p>
+        }
       </section>
+      }
 
-      @if (permissions.can('properties.assign')) {
+      @if (isStep('assign') && permissions.can('properties.assign')) {
         <section class="panel">
           <h2>Assign staff</h2>
           <form class="stack" [formGroup]="assignForm" (ngSubmit)="assign()">
@@ -81,38 +165,43 @@
         </section>
       }
 
-      @if (permissions.canAny('properties.transition', 'properties.approve', 'properties.reject')) {
-        <section class="panel">
+      @if (isStep('verification') && permissions.canAny('properties.transition', 'properties.approve', 'properties.reject')) {
+        <section class="panel workflow-panel">
           <h2>Verification workflow</h2>
+          <p class="panel-lead">
+            @if (permissions.is('LAWYER')) {
+              Clear legal review or send the case back for fixes.
+            } @else {
+              Move the property to the next verification step.
+            }
+          </p>
+
           @if (permissions.can('properties.transition')) {
             <form class="stack" [formGroup]="transitionForm" (ngSubmit)="transition()">
               <label>
-                <span>Move to status</span>
+                <span>Next step</span>
                 <select formControlName="toStatus">
-                  <option value="SUBMITTED">SUBMITTED</option>
-                  <option value="DOCUMENT_COLLECTION">DOCUMENT_COLLECTION</option>
-                  <option value="AI_ANALYSIS">AI_ANALYSIS</option>
-                  <option value="LEGAL_REVIEW">LEGAL_REVIEW</option>
-                  <option value="GOVERNMENT_CHECK">GOVERNMENT_CHECK</option>
-                  <option value="PHYSICAL_INSPECTION">PHYSICAL_INSPECTION</option>
-                  <option value="VALUATION">VALUATION</option>
-                  <option value="RISK_ASSESSMENT">RISK_ASSESSMENT</option>
-                  <option value="FINAL_REVIEW">FINAL_REVIEW</option>
-                  <option value="REVIEW_REQUIRED">REVIEW_REQUIRED</option>
-                  <option value="VERIFIED">VERIFIED</option>
-                  <option value="REJECTED">REJECTED</option>
+                  @for (opt of transitionOptions(); track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
                 </select>
               </label>
               <label>
-                <span>Notes</span>
-                <textarea rows="3" formControlName="notes"></textarea>
+                <span>Notes <em class="optional">(optional)</em></span>
+                <textarea
+                  rows="3"
+                  formControlName="notes"
+                  placeholder="Brief note for the next team"
+                ></textarea>
               </label>
-              <label>
+              <label class="trust-field">
                 <span>Trust score</span>
                 <input type="number" formControlName="trustScore" min="0" max="100" />
               </label>
-              <div class="actions">
-                <button class="btn primary" type="submit" [disabled]="saving()">Transition</button>
+              <div class="workflow-actions">
+                <button class="btn primary" type="submit" [disabled]="saving()">
+                  Advance status
+                </button>
                 @if (permissions.can('properties.approve')) {
                   <button class="btn" type="button" (click)="approve()" [disabled]="saving()">
                     Approve & publish
@@ -121,30 +210,16 @@
               </div>
             </form>
           } @else if (permissions.can('properties.approve')) {
-            <div class="actions">
-              <button class="btn" type="button" (click)="approve()" [disabled]="saving()">
+            <div class="workflow-actions">
+              <button class="btn primary" type="button" (click)="approve()" [disabled]="saving()">
                 Approve & publish
               </button>
             </div>
           }
-
-          @if (permissions.can('properties.reject')) {
-            <form class="stack reject" [formGroup]="rejectForm" (ngSubmit)="reject()">
-              <label>
-                <span>Reject reason</span>
-                <textarea
-                  rows="3"
-                  formControlName="reason"
-                  placeholder="Explain critical issue found"
-                ></textarea>
-              </label>
-              <button class="btn danger" type="submit" [disabled]="saving()">Reject property</button>
-            </form>
-          }
         </section>
       }
 
-      @if (showInspectionPanel() || permissions.can('inspections.schedule')) {
+      @if (isStep('inspection') && (showInspectionPanel() || permissions.can('inspections.schedule'))) {
         <section class="panel inspection-panel">
           <h2>Physical inspection</h2>
 
@@ -355,122 +430,233 @@
         </section>
       }
 
+      @if (isStep('documents')) {
       <section class="panel docs-panel">
-        <h2>Documents</h2>
+        <div class="section-head">
+          <div>
+            <h2>Documents</h2>
+            <p class="muted section-sub">{{ documents().length }} file{{ documents().length === 1 ? '' : 's' }}</p>
+          </div>
+          @if (permissions.can('documents.request')) {
+            <button
+              type="button"
+              class="btn"
+              (click)="requestOpen.set(!requestOpen())"
+            >
+              {{ requestOpen() ? 'Cancel request' : 'Request document' }}
+            </button>
+          }
+        </div>
+
         @if (!documents().length) {
           <p class="muted">No documents uploaded yet.</p>
         } @else {
-          <ul class="doc-list">
-            @for (doc of documents(); track doc.id) {
-              <li class="doc-item">
-                <div class="doc-head">
-                  <div>
-                    <strong>{{ doc.title }}</strong>
-                    <span class="muted"> · {{ doc.category }}</span>
-                  </div>
-                  <span class="badge" [attr.data-status]="doc.status">{{ doc.status }}</span>
-                </div>
-                <p class="doc-meta">
-                  {{ doc.fileName }}
-                  @if (doc.version) {
-                    · v{{ doc.version }}
+          <div class="table-wrap docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (doc of documents(); track doc.id) {
+                  <tr [class.reviewing]="reviewingId() === doc.id">
+                    <td>
+                      <div class="doc-title">{{ doc.title }}</div>
+                      <div class="doc-meta">
+                        @if (doc.fileName) {
+                          {{ doc.fileName }}
+                        } @else {
+                          Awaiting upload
+                        }
+                      </div>
+                    </td>
+                    <td>{{ statusLabel(doc.category) }}</td>
+                    <td>
+                      <span class="badge" [attr.data-status]="doc.status">{{
+                        statusLabel(doc.status)
+                      }}</span>
+                    </td>
+                    <td class="docs-actions-cell">
+                      @if (fileHref(doc); as href) {
+                        <a [href]="href" target="_blank" rel="noopener noreferrer">Open</a>
+                      }
+                      @if (canReviewDoc(doc)) {
+                        <button type="button" class="link-btn" (click)="startReview(doc)">
+                          Review
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                  @if (reviewingId() === doc.id) {
+                    <tr class="review-row">
+                      <td colspan="4">
+                        <form
+                          class="stack review-box"
+                          [formGroup]="reviewForm"
+                          (ngSubmit)="$event.preventDefault()"
+                        >
+                          <label>
+                            <span>Review note (required)</span>
+                            <textarea
+                              rows="2"
+                              formControlName="notes"
+                              placeholder="Explain approval or what the seller must fix"
+                            ></textarea>
+                          </label>
+                          <div class="workflow-actions">
+                            <button
+                              class="btn primary"
+                              type="button"
+                              [disabled]="saving()"
+                              (click)="reviewDocument('VERIFIED')"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              class="btn danger-outline"
+                              type="button"
+                              [disabled]="saving()"
+                              (click)="reviewDocument('REJECTED')"
+                            >
+                              Reject — ask re-upload
+                            </button>
+                            <button class="btn" type="button" (click)="cancelReview()">Cancel</button>
+                          </div>
+                        </form>
+                      </td>
+                    </tr>
                   }
-                  @if (doc.uploadedBy) {
-                    · by {{ doc.uploadedBy.fullName }}
-                  }
-                </p>
-                @if (doc.notes) {
-                  <p class="doc-notes">{{ doc.notes }}</p>
                 }
-                <div class="doc-actions">
-                  @if (fileHref(doc); as href) {
-                    <a [href]="href" target="_blank" rel="noopener noreferrer">Open file</a>
-                  } @else {
-                    <span class="muted">Awaiting seller upload</span>
-                  }
-                  @if (canReviewDoc(doc)) {
-                    <button type="button" class="btn" (click)="startReview(doc)">Review</button>
-                  }
-                </div>
-
-                @if (reviewingId() === doc.id) {
-                  <form class="stack review-box" [formGroup]="reviewForm" (ngSubmit)="$event.preventDefault()">
-                    <label>
-                      <span>Review note (required)</span>
-                      <textarea
-                        rows="3"
-                        formControlName="notes"
-                        placeholder="Explain approval or what the seller must fix"
-                      ></textarea>
-                    </label>
-                    <div class="actions">
-                      <button
-                        class="btn primary"
-                        type="button"
-                        [disabled]="saving()"
-                        (click)="reviewDocument('VERIFIED')"
-                      >
-                        Approve document
-                      </button>
-                      <button
-                        class="btn danger"
-                        type="button"
-                        [disabled]="saving()"
-                        (click)="reviewDocument('REJECTED')"
-                      >
-                        Reject — ask re-upload
-                      </button>
-                      <button class="btn" type="button" (click)="cancelReview()">Cancel</button>
-                    </div>
-                  </form>
-                }
-              </li>
-            }
-          </ul>
+              </tbody>
+            </table>
+          </div>
         }
 
-        @if (permissions.can('documents.request')) {
+        @if (permissions.can('documents.request') && requestOpen()) {
           <form class="stack request-box" [formGroup]="requestForm" (ngSubmit)="requestDocument()">
             <h3>Request additional document</h3>
+            <div class="request-grid">
+              <label>
+                <span>Category</span>
+                <select formControlName="category">
+                  @for (c of documentCategories; track c) {
+                    <option [value]="c">{{ c }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>Document title</span>
+                <input
+                  type="text"
+                  formControlName="title"
+                  placeholder="e.g. Latest property tax receipt"
+                />
+              </label>
+            </div>
             <label>
-              <span>Category</span>
-              <select formControlName="category">
-                @for (c of documentCategories; track c) {
-                  <option [value]="c">{{ c }}</option>
-                }
-              </select>
-            </label>
-            <label>
-              <span>Document title</span>
-              <input type="text" formControlName="title" placeholder="e.g. Latest property tax receipt" />
-            </label>
-            <label>
-              <span>Instructions for seller (required)</span>
+              <span>Instructions for seller</span>
               <textarea
-                rows="3"
+                rows="2"
                 formControlName="notes"
                 placeholder="Tell the seller exactly what to upload"
               ></textarea>
             </label>
-            <button class="btn primary" type="submit" [disabled]="saving()">Send request to seller</button>
+            <div class="workflow-actions">
+              <button class="btn primary" type="submit" [disabled]="saving()">
+                Send request to seller
+              </button>
+            </div>
           </form>
         }
       </section>
+      }
 
-      <section class="panel">
-        <h2>Verification history</h2>
-        <ul class="timeline">
-          @for (h of p.verificationHistory ?? []; track h.id) {
-            <li>
-              <strong>{{ h.toStatus }}</strong>
-              <span>{{ h.fromStatus ? h.fromStatus + ' → ' : '' }}{{ h.toStatus }}</span>
-              <span>{{ h.notes }}</span>
-              <small>{{ h.actor?.fullName }} · {{ h.createdAt | date: 'medium' }}</small>
-            </li>
-          }
-        </ul>
-      </section>
+      @if (isStep('history') && showVerificationHistory()) {
+        <section class="panel history-panel">
+          <h2>Verification history</h2>
+            <ul class="timeline">
+              @for (h of p.verificationHistory ?? []; track h.id) {
+                <li>
+                  <strong>{{ statusLabel(h.toStatus) }}</strong>
+                  <span>
+                    {{ h.fromStatus ? statusLabel(h.fromStatus) + ' → ' : ''
+                    }}{{ statusLabel(h.toStatus) }}
+                  </span>
+                  @if (h.notes) {
+                    <span>{{ h.notes }}</span>
+                  }
+                  <small>{{ h.actor?.fullName }} · {{ h.createdAt | date: 'medium' }}</small>
+                </li>
+              } @empty {
+                <li class="muted">No history yet.</li>
+              }
+            </ul>
+        </section>
+      }
     </div>
+
+    <div class="flow-footer">
+      <button type="button" class="btn" (click)="goStep(-1)" [disabled]="stepIndex() === 0">
+        Back
+      </button>
+      <p class="flow-progress">
+        Step {{ stepIndex() + 1 }} of {{ flowSteps().length }}
+        · {{ flowSteps()[stepIndex()].label }}
+      </p>
+      <button
+        type="button"
+        class="btn primary"
+        (click)="goStep(1)"
+        [disabled]="stepIndex() === flowSteps().length - 1"
+      >
+        Next
+      </button>
+    </div>
+
+    @if (rejectOpen()) {
+      <div class="modal-backdrop" (click)="closeReject()" role="presentation"></div>
+      <div
+        class="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reject-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="modal-head">
+          <div>
+            <p class="eyebrow">Reject property</p>
+            <h2 id="reject-title">{{ property()?.title }}</h2>
+            <p class="muted">This stops verification. Seller will see your reason.</p>
+          </div>
+          <button type="button" class="btn" (click)="closeReject()">Close</button>
+        </header>
+        <form class="stack" [formGroup]="rejectForm" (ngSubmit)="reject()">
+          <label>
+            <span>Rejection note</span>
+            <textarea
+              rows="4"
+              formControlName="reason"
+              placeholder="Explain the critical issue found"
+            ></textarea>
+            @if (rejectForm.controls.reason.touched && rejectForm.controls.reason.invalid) {
+              <small class="field-error">Please enter at least 10 characters</small>
+            }
+          </label>
+          <div class="workflow-actions">
+            <button class="btn" type="button" (click)="closeReject()" [disabled]="saving()">
+              Cancel
+            </button>
+            <button class="btn danger" type="submit" [disabled]="saving()">
+              Confirm reject
+            </button>
+          </div>
+        </form>
+      </div>
+    }
     }
   }
 </section>

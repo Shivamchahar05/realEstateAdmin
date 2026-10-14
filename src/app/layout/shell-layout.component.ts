@@ -2,7 +2,7 @@ import { Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { PermissionService } from '../core/services/permission.service';
-import { NAV_LINKS, hasPermission } from '../core/permissions';
+import { NAV_LINKS, hasPermission, navLabel } from '../core/permissions';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -19,6 +19,9 @@ export class ShellLayoutComponent {
 
   readonly links = computed(() => {
     const role = this.auth.user()?.role;
-    return NAV_LINKS.filter((link) => hasPermission(role, link.permission));
+    return NAV_LINKS.filter((link) => hasPermission(role, link.permission)).map((link) => ({
+      path: link.path,
+      label: navLabel(link, role),
+    }));
   });
 }

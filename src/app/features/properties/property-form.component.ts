@@ -56,6 +56,11 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
   readonly furnishingQty = signal<Record<string, number>>({});
   readonly selectedAmenities = signal<Set<string>>(new Set());
   readonly nearbyRows = signal<NearbyRow[]>([]);
+  readonly societyMode = signal(false);
+  readonly selectedConfigs = signal<Set<number>>(new Set());
+  readonly bhkOptions = [1, 2, 3, 4, 5];
+
+  private typeWatch?: { unsubscribe(): void };
 
   readonly isEdit = () => !!this.propertyId();
 
@@ -77,6 +82,9 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
     parkingSpaces: [1, [Validators.min(0)]],
     furnishing: ['SEMI_FURNISHED', Validators.required],
     readyToMove: [true],
+    reraNumber: [''],
+    totalTowers: [null as number | null],
+    totalUnits: [null as number | null],
     askingPrice: [10000000, [Validators.required, Validators.min(1)]],
     estimatedMinPrice: [null as number | null],
     estimatedMaxPrice: [null as number | null],
@@ -87,6 +95,11 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.typeWatch = this.form.controls.propertyType.valueChanges.subscribe((type) => {
+      this.societyMode.set(type === 'SOCIETY');
+      this.syncPriceValidators(type === 'SOCIETY');
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.propertyId.set(id);
@@ -113,7 +126,26 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.typeWatch?.unsubscribe();
     this.clearPendingPreviews();
+  }
+
+  private syncPriceValidators(society: boolean): void {
+    const asking = this.form.controls.askingPrice;
+    const min = this.form.controls.estimatedMinPrice;
+    const max = this.form.controls.estimatedMaxPrice;
+    if (society) {
+      asking.clearValidators();
+      min.setValidators([Validators.required, Validators.min(1)]);
+      max.setValidators([Validators.required, Validators.min(1)]);
+    } else {
+      asking.setValidators([Validators.required, Validators.min(1)]);
+      min.clearValidators();
+      max.clearValidators();
+    }
+    asking.updateValueAndValidity({ emitEvent: false });
+    min.updateValueAndValidity({ emitEvent: false });
+    max.updateValueAndValidity({ emitEvent: false });
   }
 
   private clearPendingPreviews(): void {
@@ -143,6 +175,9 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
           parkingSpaces: property.parkingSpaces ?? 0,
           furnishing: property.furnishing || 'SEMI_FURNISHED',
           readyToMove: property.readyToMove ?? true,
+          reraNumber: property.reraNumber ?? '',
+          totalTowers: property.totalTowers ?? null,
+          totalUnits: property.totalUnits ?? null,
           askingPrice: Number(property.askingPrice),
           estimatedMinPrice:
             property.estimatedMinPrice != null ? Number(property.estimatedMinPrice) : null,
@@ -160,6 +195,7 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
         }
         this.furnishingQty.set(qty);
         this.selectedAmenities.set(new Set(property.amenities ?? []));
+        this.selectedConfigs.set(new Set(property.bhkConfigurations ?? []));
         this.nearbyRows.set(
           (property.nearbyPlaces ?? []).map((p) => ({
             name: p.name,
@@ -191,6 +227,19 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
       const next = { ...current };
       if (qty <= 0) delete next[key];
       else next[key] = qty;
+      return next;
+    });
+  }
+
+  isConfigSelected(bhk: number): boolean {
+    return this.selectedConfigs().has(bhk);
+  }
+
+  toggleConfig(bhk: number): void {
+    this.selectedConfigs.update((current) => {
+      const next = new Set(current);
+      if (next.has(bhk)) next.delete(bhk);
+      else next.add(bhk);
       return next;
     });
   }
@@ -320,17 +369,30 @@ export class PropertyFormComponent implements OnInit, OnDestroy {
     }
 
     const raw = this.form.getRawValue();
+    const society = raw.propertyType === 'SOCIETY';
+    const minPrice = raw.estimatedMinPrice || undefined;
+    const maxPrice = raw.estimatedMaxPrice || undefined;
+    if (society && minPrice && maxPrice && Number(maxPrice) < Number(minPrice)) {
+      this.error.set('Maximum price must be at least the minimum price');
+      return;
+    }
+
     const body = {
       ...raw,
       sellerId: raw.sellerId || undefined,
       lawyerId: raw.lawyerId || undefined,
       inspectorId: raw.inspectorId || undefined,
       propertyManagerId: raw.propertyManagerId || undefined,
-      estimatedMinPrice: raw.estimatedMinPrice || undefined,
-      estimatedMaxPrice: raw.estimatedMaxPrice || undefined,
+      estimatedMinPrice: minPrice,
+      estimatedMaxPrice: maxPrice,
+      askingPrice: society ? minPrice : raw.askingPrice,
       pincode: raw.pincode || undefined,
       description: raw.description || undefined,
-      furnishingsInventory: this.buildFurnishingsInventory(),
+      reraNumber: society ? raw.reraNumber.trim() || undefined : undefined,
+      totalTowers: society ? raw.totalTowers || undefined : undefined,
+      totalUnits: society ? raw.totalUnits || undefined : undefined,
+      bhkConfigurations: society ? [...this.selectedConfigs()].sort((a, b) => a - b) : [],
+      furnishingsInventory: society ? [] : this.buildFurnishingsInventory(),
       amenities: Array.from(this.selectedAmenities()),
       nearbyPlaces: this.buildNearbyPlaces(),
     };

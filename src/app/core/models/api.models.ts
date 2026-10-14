@@ -41,6 +41,7 @@ export interface AuthTokens {
 }
 
 export interface DashboardMetrics {
+  role?: string | null;
   totals: {
     totalProperties: number;
     verifiedProperties: number;
@@ -51,6 +52,9 @@ export interface DashboardMetrics {
     sellers: number;
     activeTransactions: number;
     completedTransactions: number;
+    legalReviewQueue?: number;
+    docsActionNeeded?: number;
+    awaitingInspection?: number;
   };
   recentProperties: Array<{
     id: string;
@@ -95,6 +99,10 @@ export interface Property {
   furnishingsInventory?: Array<{ key: string; qty: number }> | null;
   amenities?: string[] | null;
   nearbyPlaces?: Array<{ name: string; distance: string; category: string }> | null;
+  reraNumber?: string | null;
+  totalTowers?: number | null;
+  totalUnits?: number | null;
+  bhkConfigurations?: number[] | null;
   askingPrice: string | number;
   estimatedMinPrice?: string | number | null;
   estimatedMaxPrice?: string | number | null;

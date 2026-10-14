@@ -1,0 +1,80 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Guides</p>
+      <h1>Blog</h1>
+      <p class="muted">Drafts stay private. Published posts show on the website.</p>
+    </div>
+    <a routerLink="/blog/new" class="btn primary">New post</a>
+  </header>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  <section class="panel">
+    <form class="filters" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      <input formControlName="search" placeholder="Search title or excerpt" />
+      <select formControlName="status">
+        <option value="">All statuses</option>
+        <option value="DRAFT">Draft</option>
+        <option value="PUBLISHED">Published</option>
+      </select>
+      <select formControlName="category">
+        <option value="">All categories</option>
+        @for (category of categories; track category) {
+          <option [value]="category">{{ category }}</option>
+        }
+      </select>
+      <button class="btn primary" type="submit">Filter</button>
+    </form>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Area</th>
+            <th>Status</th>
+            <th>Updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading()) {
+            <tr><td colspan="6">Loading…</td></tr>
+          } @else if (!items().length) {
+            <tr><td colspan="6">No posts yet.</td></tr>
+          } @else {
+            @for (post of items(); track post.id) {
+              <tr>
+                <td>
+                  <strong>{{ post.title }}</strong>
+                  @if (post.featured) {
+                    <span class="badge">Featured</span>
+                  }
+                </td>
+                <td>{{ post.category }}</td>
+                <td>{{ post.locality || post.city || '—' }}</td>
+                <td><span class="badge">{{ post.status }}</span></td>
+                <td>{{ post.updatedAt | date: 'mediumDate' }}</td>
+                <td class="row-actions">
+                  <a [routerLink]="['/blog', post.id, 'edit']">Edit</a>
+                  <button type="button" class="link-btn" (click)="remove(post)">Delete</button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-pagination
+      [page]="page()"
+      [limit]="limit"
+      [total]="total()"
+      (pageChange)="onPageChange($event)"
+    />
+  </section>
+</section>

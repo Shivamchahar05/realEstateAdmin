@@ -1,0 +1,41 @@
+.stack {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 46rem;
+}
+
+.split-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.cover-row {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
+
+.cover-preview {
+  width: 220px;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #e7e1d6;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.check input {
+  width: auto;
+}
+
+@media (max-width: 720px) {
+  .split-fields {
+    grid-template-columns: 1fr;
+  }
+}

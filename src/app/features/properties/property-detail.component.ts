@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
@@ -37,6 +37,54 @@ const CHECKLIST_ITEMS = [
   { key: 'safety', label: 'No critical safety hazards' },
 ] as const;
 
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  DOCUMENT_COLLECTION: 'Docs needed',
+  AI_ANALYSIS: 'AI analysis',
+  LEGAL_REVIEW: 'Legal review',
+  GOVERNMENT_CHECK: 'Govt check',
+  PHYSICAL_INSPECTION: 'Inspection',
+  VALUATION: 'Valuation',
+  RISK_ASSESSMENT: 'Risk assessment',
+  FINAL_REVIEW: 'Final review',
+  REVIEW_REQUIRED: 'Needs review',
+  VERIFIED: 'Verified',
+  REJECTED: 'Rejected',
+  PENDING_VERIFICATION: 'Pending verification',
+  LIVE: 'Live',
+};
+
+const ALL_TRANSITION_OPTIONS = [
+  { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'DOCUMENT_COLLECTION', label: 'Request more documents' },
+  { value: 'AI_ANALYSIS', label: 'AI analysis' },
+  { value: 'LEGAL_REVIEW', label: 'Legal review' },
+  { value: 'GOVERNMENT_CHECK', label: 'Government check' },
+  { value: 'PHYSICAL_INSPECTION', label: 'Send to inspection' },
+  { value: 'VALUATION', label: 'Valuation' },
+  { value: 'RISK_ASSESSMENT', label: 'Risk assessment' },
+  { value: 'FINAL_REVIEW', label: 'Final review' },
+  { value: 'REVIEW_REQUIRED', label: 'Needs review / fixes' },
+  { value: 'VERIFIED', label: 'Verified' },
+  { value: 'REJECTED', label: 'Rejected' },
+] as const;
+
+const LAWYER_TRANSITION_OPTIONS = [
+  { value: 'PHYSICAL_INSPECTION', label: 'Clear legal → send to inspection' },
+  { value: 'DOCUMENT_COLLECTION', label: 'Ask seller for more documents' },
+  { value: 'REVIEW_REQUIRED', label: 'Send back — needs fixes' },
+  { value: 'LEGAL_REVIEW', label: 'Keep in legal review' },
+] as const;
+
+type FlowStepId = 'overview' | 'assign' | 'verification' | 'inspection' | 'documents' | 'history';
+
+const INSPECTOR_TRANSITION_OPTIONS = [
+  { value: 'FINAL_REVIEW', label: 'Inspection done → final review' },
+  { value: 'REVIEW_REQUIRED', label: 'Send back — needs fixes' },
+  { value: 'PHYSICAL_INSPECTION', label: 'Keep in inspection' },
+] as const;
+
 @Component({
   selector: 'app-property-detail',
   standalone: true,
@@ -65,6 +113,27 @@ export class PropertyDetailComponent implements OnInit {
   readonly staff = signal<StaffOption[]>([]);
   readonly reviewingId = signal<string | null>(null);
   readonly editingInspectionId = signal<string | null>(null);
+  readonly requestOpen = signal(false);
+  readonly rejectOpen = signal(false);
+  readonly activeStep = signal<FlowStepId>('overview');
+
+  readonly flowSteps = computed(() => {
+    const steps: Array<{ id: FlowStepId; label: string }> = [{ id: 'overview', label: 'Overview' }];
+    if (this.permissions.can('properties.assign')) {
+      steps.push({ id: 'assign', label: 'Assign staff' });
+    }
+    if (this.permissions.canAny('properties.transition', 'properties.approve', 'properties.reject')) {
+      steps.push({ id: 'verification', label: 'Verification' });
+    }
+    if (this.showInspectionPanel() || this.permissions.can('inspections.schedule')) {
+      steps.push({ id: 'inspection', label: 'Inspection' });
+    }
+    steps.push({ id: 'documents', label: 'Documents' });
+    if (this.showVerificationHistory()) {
+      steps.push({ id: 'history', label: 'History' });
+    }
+    return steps;
+  });
 
   readonly assignForm = this.fb.group({
     lawyerId: [''],
@@ -74,9 +143,20 @@ export class PropertyDetailComponent implements OnInit {
 
   readonly transitionForm = this.fb.nonNullable.group({
     toStatus: ['LEGAL_REVIEW', Validators.required],
-    notes: ['', [Validators.required, Validators.minLength(3)]],
+    notes: [''],
     trustScore: [85, [Validators.min(0), Validators.max(100)]],
   });
+
+  readonly transitionOptions = computed(() => {
+    if (this.permissions.is('LAWYER')) return [...LAWYER_TRANSITION_OPTIONS];
+    if (this.permissions.is('INSPECTOR')) return [...INSPECTOR_TRANSITION_OPTIONS];
+    return [...ALL_TRANSITION_OPTIONS];
+  });
+
+  statusLabel(status: string | null | undefined): string {
+    if (!status) return '—';
+    return STATUS_LABELS[status] ?? status.replace(/_/g, ' ').toLowerCase();
+  }
 
   readonly rejectForm = this.fb.nonNullable.group({
     reason: ['', [Validators.required, Validators.minLength(10)]],
@@ -228,8 +308,16 @@ export class PropertyDetailComponent implements OnInit {
       this.transitionForm.markAllAsTouched();
       return;
     }
+    const raw = this.transitionForm.getRawValue();
+    const notes = raw.notes.trim();
     this.saving.set(true);
-    this.data.transitionVerification(property.id, this.transitionForm.getRawValue()).subscribe({
+    this.data
+      .transitionVerification(property.id, {
+        toStatus: raw.toStatus,
+        trustScore: raw.trustScore,
+        ...(notes.length >= 3 ? { notes } : {}),
+      })
+      .subscribe({
       next: () => {
         this.message.set('Verification status updated');
         this.reload(property.id);
@@ -259,6 +347,16 @@ export class PropertyDetailComponent implements OnInit {
     });
   }
 
+  openReject(): void {
+    this.rejectForm.reset({ reason: '' });
+    this.error.set(null);
+    this.rejectOpen.set(true);
+  }
+
+  closeReject(): void {
+    this.rejectOpen.set(false);
+  }
+
   reject(): void {
     const property = this.property();
     if (!property || this.rejectForm.invalid) {
@@ -266,10 +364,12 @@ export class PropertyDetailComponent implements OnInit {
       return;
     }
     this.saving.set(true);
-    this.data.rejectProperty(property.id, this.rejectForm.controls.reason.value).subscribe({
+    this.data.rejectProperty(property.id, this.rejectForm.controls.reason.value.trim()).subscribe({
       next: (updated) => {
         this.property.set(updated);
         this.message.set('Property rejected');
+        this.rejectOpen.set(false);
+        this.rejectForm.reset({ reason: '' });
         this.saving.set(false);
       },
       error: (err) => {
@@ -291,6 +391,7 @@ export class PropertyDetailComponent implements OnInit {
   }
 
   reviewDocument(status: 'VERIFIED' | 'REJECTED'): void {
+    console.log('reviewDocument', status);
     const property = this.property();
     const documentId = this.reviewingId();
     if (!property || !documentId || this.reviewForm.invalid) {
@@ -342,6 +443,7 @@ export class PropertyDetailComponent implements OnInit {
         next: () => {
           this.message.set('Additional document requested from seller');
           this.requestForm.reset({ category: 'OTHER', title: '', notes: '' });
+          this.requestOpen.set(false);
           this.reload(property.id);
           this.saving.set(false);
         },
@@ -603,6 +705,24 @@ export class PropertyDetailComponent implements OnInit {
     return true;
   }
 
+  stepIndex(): number {
+    const index = this.flowSteps().findIndex((step) => step.id === this.activeStep());
+    return index < 0 ? 0 : index;
+  }
+
+  isStep(id: FlowStepId): boolean {
+    const steps = this.flowSteps();
+    const active = steps.some((step) => step.id === this.activeStep())
+      ? this.activeStep()
+      : steps[0]?.id;
+    return active === id;
+  }
+
+  goStep(offset: number): void {
+    const next = this.flowSteps()[this.stepIndex() + offset];
+    if (next) this.activeStep.set(next.id);
+  }
+
   showInspectionPanel(): boolean {
     if (!this.permissions.can('inspections.view')) return false;
     const status = this.property()?.verificationStatus;
@@ -616,6 +736,15 @@ export class PropertyDetailComponent implements OnInit {
       'GOVERNMENT_CHECK',
       'VERIFIED',
     ].includes(status);
+  }
+
+  /** Ops/admin only — lawyers don't need the audit trail on this screen */
+  showVerificationHistory(): boolean {
+    return (
+      this.permissions.is('SUPER_ADMIN') ||
+      this.permissions.is('ADMIN') ||
+      this.permissions.is('PROPERTY_MANAGER')
+    );
   }
 
   fileHref(doc: PropertyDocument): string | null {

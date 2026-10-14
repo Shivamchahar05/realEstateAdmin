@@ -1,0 +1,99 @@
+<section class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Guides</p>
+      <h1>{{ postId() ? 'Edit post' : 'New post' }}</h1>
+    </div>
+    <a routerLink="/blog" class="btn">Back to posts</a>
+  </header>
+
+  @if (error()) {
+    <div class="alert">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="muted">Loading post…</p>
+  } @else {
+    <form class="panel stack" [formGroup]="form" (ngSubmit)="save()">
+      <label>
+        <span>Title</span>
+        <input formControlName="title" />
+      </label>
+      <label>
+        <span>Slug</span>
+        <input formControlName="slug" placeholder="Leave blank to generate from the title" />
+      </label>
+      <label>
+        <span>Excerpt</span>
+        <textarea formControlName="excerpt" rows="3"></textarea>
+      </label>
+      <label>
+        <span>Article</span>
+        <textarea formControlName="body" rows="14" placeholder="Separate paragraphs with a blank line."></textarea>
+      </label>
+
+      <div class="cover-row">
+        <label>
+          <span>Cover image</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" (change)="onCoverSelected($event)" />
+        </label>
+        @if (coverSrc()) {
+          <img class="cover-preview" [src]="coverSrc()" alt="" />
+          <button type="button" class="btn" (click)="clearCover()">Remove cover</button>
+        }
+      </div>
+
+      <div class="split-fields">
+        <label>
+          <span>Category</span>
+          <select formControlName="category">
+            @for (category of categories; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Status</span>
+          <select formControlName="status">
+            <option value="DRAFT">Draft</option>
+            <option value="PUBLISHED">Published</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        <span>Tags</span>
+        <input formControlName="tags" placeholder="rera, sector 56, home loan" />
+      </label>
+
+      <div class="split-fields">
+        <label>
+          <span>City</span>
+          <input formControlName="city" placeholder="Gurgaon" />
+        </label>
+        <label>
+          <span>Locality</span>
+          <input formControlName="locality" placeholder="DLF Phase 2" />
+        </label>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" formControlName="featured" />
+        <span>Featured on the blog list</span>
+      </label>
+
+      <label>
+        <span>SEO title</span>
+        <input formControlName="seoTitle" />
+      </label>
+      <label>
+        <span>SEO description</span>
+        <textarea formControlName="seoDescription" rows="2"></textarea>
+      </label>
+
+      <button class="btn primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Saving…' : 'Save post' }}
+      </button>
+    </form>
+  }
+</section>

@@ -1,7 +1,7 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AdminDataService } from '../../core/services/admin-data.service';
 import { PermissionService } from '../../core/services/permission.service';
 import { Property } from '../../core/models/api.models';
@@ -17,6 +17,7 @@ import { PaginationComponent } from '../../shared/pagination.component';
 export class PropertyListComponent implements OnInit {
   private readonly data = inject(AdminDataService);
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
   readonly permissions = inject(PermissionService);
 
   readonly loading = signal(false);
@@ -34,6 +35,14 @@ export class PropertyListComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    const fromQuery = this.route.snapshot.queryParamMap.get('verificationStatus');
+    if (fromQuery) {
+      this.filters.patchValue({ verificationStatus: fromQuery });
+    } else if (this.permissions.is('LAWYER')) {
+      this.filters.patchValue({ verificationStatus: 'LEGAL_REVIEW' });
+    } else if (this.permissions.is('INSPECTOR')) {
+      this.filters.patchValue({ verificationStatus: 'PHYSICAL_INSPECTION' });
+    }
     this.load();
   }
 

@@ -1,9 +1,19 @@
 <section class="page">
   <header class="page-header">
     <div>
-      <p class="eyebrow">Inventory</p>
-      <h1>Properties</h1>
-      <p class="muted">{{ total() }} total records</p>
+      @if (permissions.is('LAWYER')) {
+        <p class="eyebrow">Legal</p>
+        <h1>Legal queue</h1>
+        <p class="muted">Properties assigned to you for document and title review.</p>
+      } @else if (permissions.is('INSPECTOR')) {
+        <p class="eyebrow">Field</p>
+        <h1>Inspection queue</h1>
+        <p class="muted">{{ total() }} properties ready for site visit</p>
+      } @else {
+        <p class="eyebrow">Inventory</p>
+        <h1>Properties</h1>
+        <p class="muted">{{ total() }} total records</p>
+      }
     </div>
     @if (permissions.can('properties.create')) {
       <a class="btn primary" routerLink="/properties/new">Add property</a>
@@ -21,14 +31,19 @@
       <option value="VERIFIED">Verified</option>
       <option value="REJECTED">Rejected</option>
       <option value="REVIEW_REQUIRED">Review required</option>
+      @if (permissions.is('LAWYER')) {
+        <option value="DOCUMENT_COLLECTION">Docs needed</option>
+      }
     </select>
-    <select formControlName="listingStatus">
-      <option value="">All listing</option>
-      <option value="DRAFT">Draft</option>
-      <option value="PENDING_VERIFICATION">Pending</option>
-      <option value="LIVE">Live</option>
-      <option value="REJECTED">Rejected</option>
-    </select>
+    @if (!permissions.is('LAWYER') && !permissions.is('INSPECTOR')) {
+      <select formControlName="listingStatus">
+        <option value="">All listing</option>
+        <option value="DRAFT">Draft</option>
+        <option value="PENDING_VERIFICATION">Pending</option>
+        <option value="LIVE">Live</option>
+        <option value="REJECTED">Rejected</option>
+      </select>
+    }
     <button class="btn primary" type="submit">Filter</button>
   </form>
 
@@ -58,7 +73,9 @@
           </tr>
         } @else if (items().length === 0) {
           <tr>
-            <td [attr.colspan]="permissions.can('properties.update') ? 7 : 6">No properties found</td>
+            <td [attr.colspan]="permissions.can('properties.update') ? 7 : 6">
+              {{ permissions.is('LAWYER') ? 'No cases in this filter' : 'No properties found' }}
+            </td>
           </tr>
         } @else {
           @for (p of items(); track p.id) {
@@ -67,7 +84,15 @@
               <td>{{ p.title }}</td>
               <td>{{ p.locality }}, {{ p.city }}</td>
               <td><span class="badge">{{ p.verificationStatus }}</span></td>
-              <td>{{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}</td>
+              <td>
+                @if (p.propertyType === 'SOCIETY' && p.estimatedMinPrice && p.estimatedMaxPrice) {
+                  {{ p.estimatedMinPrice | currency: 'INR':'symbol':'1.0-0' }}
+                  –
+                  {{ p.estimatedMaxPrice | currency: 'INR':'symbol':'1.0-0' }}
+                } @else {
+                  {{ p.askingPrice | currency: 'INR':'symbol':'1.0-0' }}
+                }
+              </td>
               <td>{{ p.updatedAt | date: 'mediumDate' }}</td>
               @if (permissions.can('properties.update')) {
                 <td class="actions-cell">

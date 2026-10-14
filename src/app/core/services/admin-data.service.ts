@@ -11,6 +11,50 @@ import {
   StaffOption,
 } from '../models/api.models';
 
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  topic: 'Buying' | 'Selling' | 'Other';
+  message: string;
+  createdAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  body: string;
+  coverImageUrl: string | null;
+  category: string;
+  tags: string[];
+  city: string | null;
+  locality: string | null;
+  featured: boolean;
+  publishedAt: string | null;
+  authorName: string;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  status: 'DRAFT' | 'PUBLISHED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const BLOG_CATEGORIES = [
+  'Gurgaon',
+  'Noida',
+  'Delhi',
+  'Faridabad',
+  'Home loan',
+  'RERA',
+  'Society',
+  'Documents',
+  'Buying guide',
+  'News',
+] as const;
+
 @Injectable({ providedIn: 'root' })
 export class AdminDataService {
   private readonly api = inject(ApiService);
@@ -173,5 +217,41 @@ export class AdminDataService {
 
   listAuditLogs(query: Record<string, string | number | undefined> = {}) {
     return this.api.get<unknown[]>('/audit-logs', query);
+  }
+
+  listContactMessages(query: Record<string, string | number | undefined> = {}) {
+    return this.api.get<ContactMessage[]>('/contact/admin', query);
+  }
+
+  deleteContactMessage(id: string) {
+    return this.api
+      .delete<{ id: string; deleted: boolean }>(`/contact/admin/${id}`)
+      .pipe(map((r) => r.data));
+  }
+
+  listBlogPosts(query: Record<string, string | number | undefined> = {}) {
+    return this.api.get<BlogPost[]>('/blog/admin', query);
+  }
+
+  getBlogPost(id: string) {
+    return this.api.get<BlogPost>(`/blog/admin/${id}`).pipe(map((r) => r.data));
+  }
+
+  createBlogPost(body: unknown) {
+    return this.api.post<BlogPost>('/blog/admin', body).pipe(map((r) => r.data));
+  }
+
+  updateBlogPost(id: string, body: unknown) {
+    return this.api.patch<BlogPost>(`/blog/admin/${id}`, body).pipe(map((r) => r.data));
+  }
+
+  deleteBlogPost(id: string) {
+    return this.api.delete<{ id: string; deleted: boolean }>(`/blog/admin/${id}`).pipe(map((r) => r.data));
+  }
+
+  uploadBlogCover(file: File) {
+    const formData = new FormData();
+    formData.append('cover', file);
+    return this.api.upload<{ url: string }>('/blog/admin/cover', formData).pipe(map((r) => r.data));
   }
 }
